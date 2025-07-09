@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitzsimmons Media - Accounts Receivable Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <style>
+        /* Chosen Palette: Calm & Serene - #F1FAEE, #A8DADC, #457B9D, #1D3557, #E63946 */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F1FAEE;
+        }
+        .main-container {
+            max-width: 1400px;
+            margin: auto;
+            padding: 2rem;
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 6px 10px -2px rgba(0, 0, 0, 0.1), 0 3px 6px -3px rgba(0, 0, 0, 0.08);
+            padding: 1.5rem;
+        }
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1D3557;
+            margin-bottom: 0.25rem;
+        }
+        .kpi-label {
+            font-size: 0.95rem;
+            color: #6B7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            max-height: 40vh;
+            width: 100%;
+        }
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 0.5rem; /* Rounded corners for scrollable tables */
+        }
+        .table-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .table-container::-webkit-scrollbar-track {
+            background: #F1FAEE;
+            border-radius: 10px;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background-color: #A8DADC;
+            border-radius: 4px;
+        }
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background-color: #457B9D;
+        }
+        .table-header {
+            background-color: #E0F2F7; /* Lighter shade from palette for table header */
+            position: sticky;
+            top: 0;
+            z-index: 10; /* Ensure header stays on top */
+        }
+        .client-list-item {
+            border-bottom: 1px solid #E5E7EB;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+        }
+        .client-list-item:hover {
+            background-color: #F3F4F6;
+            transform: translateX(3px); /* Subtle hover effect */
+        }
+        .client-list-item.active {
+            background-color: #A8DADC;
+            color: #1D3557;
+            font-weight: 600;
+            box-shadow: inset 3px 0 0 0 #457B9D; /* Accent border on active */
+        }
+        .action-button {
+            background-color: #457B9D;
+            color: white;
+            padding: 0.65rem 1.25rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .action-button:hover {
+            background-color: #1D3557;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        .action-button.disabled {
+            background-color: #CBD5E1;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+        .data-table th {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #4B5563;
+        }
+        .data-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #E5E7EB;
+        }
+        .data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Print Specific Styles */
+        @media print {
+            body > *:not(.print-area) {
+                display: none;
+            }
+            .print-area {
+                display: block !important;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                font-size: 12pt;
+                color: black;
+            }
+            .print-area h1, .print-area h2, .print-area h3 {
+                color: black !important;
+                margin-bottom: 0.5rem;
+            }
+            .print-area table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 1rem;
+            }
+            .print-area th, .print-area td {
+                border: 1px solid #ccc;
+                padding: 8px;
+                text-align: left;
+            }
+            .print-area .text-right {
+                text-align: right;
+            }
+            .print-area .text-green-600 {
+                color: green !important;
+            }
+            .print-area .text-red-600 {
+                color: red !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+    <div class="main-container">
+        <header class="mb-8">
+            <h1 class="text-4xl font-bold text-gray-800">Accounts Receivable Dashboard</h1>
+            <p class="text-gray-500">Fitzsimmons Media - As of May 31, 2025</p>
+        </header>
+        
+        <!-- KPIs Section -->
+        <section id="kpis" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="card">
+                <div class="kpi-value" id="total-outstanding">$0.00</div>
+                <div class="kpi-label">Total Outstanding Balance</div>
+            </div>
+            <div class="card">
+                <div class="kpi-value" id="open-invoices">0</div>
+                <div class="kpi-label">Open Invoices</div>
+            </div>
+            <div class="card">
+                <div class="kpi-value" id="clients-with-debt">0</div>
+                <div class="kpi-label">Clients with Debt</div>
+            </div>
+            <div class="card">
+                <div class="kpi-value" id="total-payments-received">$0.00</div>
+                <div class="kpi-label">Total Payments Received (Historical)</div>
+            </div>
+        </section>
+
+        <!-- Quick Actions Section -->
+        <section class="mb-8 card flex flex-wrap gap-4 items-center justify-center">
+            <h2 class="text-xl font-semibold text-gray-700 mr-4">Quick Actions:</h2>
+            <a href="https://mercury.com/" target="_blank" class="action-button">
+                <span>Go to Mercury</span>
+                <span class="text-sm">↗</span>
+            </a>
+            <button id="general-statement-btn" class="action-button">
+                <span>General Statement</span>
+                <span class="text-sm">📄</span>
+            </button>
+            <button id="general-balance-sheet-btn" class="action-button">
+                <span>General Balance Sheet</span>
+                <span class="text-sm">📊</span>
+            </button>
+            <button id="manage-invoices-btn" class="action-button">
+                <span>Manage Invoices</span>
+                <span class="text-sm">⚙️</span>
+            </button>
+        </section>
+
+        <!-- Main Content Section -->
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- Left Column: Client List -->
+            <div class="lg:col-span-1 card">
+                <h2 class="text-xl font-semibold mb-4 text-gray-700">Client Accounts</h2>
+                <input type="text" id="searchInput" onkeyup="filterClients()" placeholder="Search clients by name..." class="w-full p-2 mb-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-300 focus:border-blue-300 transition duration-150 ease-in-out">
+                <div class="table-container border border-gray-200">
+                    <table class="w-full text-sm text-left text-gray-500">
+                        <thead class="text-xs text-gray-700 uppercase table-header">
+                            <tr>
+                                <th scope="col" class="px-4 py-3">Client Name</th>
+                                <th scope="col" class="px-4 py-3 text-right">Balance Due</th>
+                            </tr>
+                        </thead>
+                        <tbody id="client-list">
+                            <!-- Client rows will be dynamically inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Right Column: Dashboard View / Client Detail View / General Views -->
+            <div class="lg:col-span-2 space-y-8">
+                
+                <!-- Dashboard View (Visible by default) -->
+                <div id="summary-view">
+                    <div class="card mb-8">
+                        <h2 class="text-xl font-semibold mb-4 text-gray-700">Accounts Receivable Aging</h2>
+                        <div class="chart-container" style="height:350px;">
+                            <canvas id="agingChart"></canvas>
+                        </div>
+                         <p class="text-sm text-gray-500 mt-4">This chart shows the breakdown of the total outstanding balance by how long invoices have been due. A larger portion in the "Current" category is healthy, while significant amounts in older categories may require follow-up.</p>
+                    </div>
+
+                    <div class="card">
+                        <h2 class="text-xl font-semibold mb-4 text-gray-700">Top 5 Clients by Outstanding Balance</h2>
+                        <div class="chart-container" style="height:350px;">
+                            <canvas id="topDebtorsChart"></canvas>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-4">These are the five clients with the highest outstanding balances. Monitoring these accounts is crucial for managing cash flow.</p>
+                    </div>
+                </div>
+                
+                <!-- Client Detail View (Hidden by default) -->
+                <div id="client-detail-view" class="hidden card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800" id="client-detail-name"></h2>
+                        <button id="back-to-summary" class="action-button">← Back to Summary</button>
+                    </div>
+
+                    <!-- Client Summary -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div class="card p-4 text-center">
+                            <div class="text-xl font-bold text-green-600" id="client-total-paid">$0.00</div>
+                            <div class="text-sm text-gray-500">Total Paid (Historical)</div>
+                        </div>
+                        <div class="card p-4 text-center">
+                            <div class="text-xl font-bold text-red-600" id="client-total-owed-original">$0.00</div>
+                            <div class="text-sm text-gray-500">Total Owed (Original Invoices)</div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-6">
+                        <h3 class="text-lg font-semibold text-gray-600 mb-2">Client Financial Overview</h3>
+                        <div class="chart-container" style="height:200px;">
+                            <canvas id="clientOverviewChart"></canvas>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-4">This chart compares the total amount invoiced to this client versus the total payments received, providing a quick financial summary.</p>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-600 mb-2">Open Invoices</h3>
+                        <div class="overflow-x-auto border border-gray-200 rounded-md">
+                            <table class="w-full text-sm text-left text-gray-500 data-table">
+                                <thead class="text-xs text-gray-700 uppercase table-header">
+                                    <tr>
+                                        <th>Invoice #</th>
+                                        <th>Date</th>
+                                        <th>Due Date</th>
+                                        <th>Aging (Days)</th>
+                                        <th class="text-right">Open Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="client-invoices-table">
+                                    <!-- Client specific invoices will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                     <div>
+                        <h3 class="text-lg font-semibold text-gray-600 mb-2">Transaction History</h3>
+                        <div class="overflow-x-auto table-container border border-gray-200 rounded-md">
+                            <table class="w-full text-sm text-left text-gray-500 data-table">
+                                <thead class="text-xs text-gray-700 uppercase table-header">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Transaction</th>
+                                        <th class="text-right">Amount</th>
+                                        <th class="text-right">Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="client-transactions-table">
+                                    <!-- Client transaction history will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 flex flex-wrap gap-4 justify-end">
+                        <button id="send-reminder-btn" class="action-button">
+                            <span>Send Reminder</span>
+                            <span class="text-sm">📧</span>
+                        </button>
+                        <button id="send-next-invoice-mercury-btn" class="action-button">
+                            <span>Send Next Invoice (Mercury)</span>
+                            <span class="text-sm">📧</span>
+                        </button>
+                        <button id="print-open-invoices" class="action-button">
+                            <span>Print Open Invoices</span>
+                            <span class="text-sm">🖨️</span>
+                        </button>
+                        <button id="print-full-statement" class="action-button">
+                            <span>Print Full Statement</span>
+                            <span class="text-sm">🖨️</span>
+                        </button>
+                        <button id="send-email-statement" class="action-button">
+                            <span>Send via Email</span>
+                            <span class="text-sm">✉️</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- General Statement View (Hidden by default) -->
+                <div id="general-statement-view" class="hidden card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800">General Statement</h2>
+                        <button id="back-to-summary-from-general-statement" class="action-button">← Back to Summary</button>
+                    </div>
+                    <div class="overflow-x-auto table-container border border-gray-200 rounded-md">
+                        <table class="w-full text-sm text-left text-gray-500 data-table">
+                            <thead class="text-xs text-gray-700 uppercase table-header">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Client</th>
+                                    <th>Transaction</th>
+                                    <th class="text-right">Amount</th>
+                                    <th class="text-right">Running Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="all-transactions-table">
+                                <!-- All transactions will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-8 flex flex-wrap gap-4 justify-end">
+                        <button id="print-general-statement-btn" class="action-button">
+                            <span>Print General Statement</span>
+                            <span class="text-sm">🖨️</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- General Balance Sheet View (Hidden by default) -->
+                <div id="general-balance-sheet-view" class="hidden card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800">General Balance Sheet</h2>
+                        <button id="back-to-summary-from-balance-sheet" class="action-button">← Back to Summary</button>
+                    </div>
+                    <div class="text-lg mb-4">
+                        <h3 class="font-semibold text-gray-700 mb-2">Assets:</h3>
+                        <p class="ml-4">Accounts Receivable: <span class="font-bold text-blue-600" id="balance-sheet-ar">$0.00</span></p>
+                    </div>
+                    <div class="text-lg mb-4">
+                        <h3 class="font-semibold text-gray-700 mb-2">Liabilities:</h3>
+                        <p class="ml-4 text-gray-500">No liabilities recorded in current data.</p>
+                    </div>
+                    <div class="text-lg">
+                        <h3 class="font-semibold text-gray-700 mb-2">Equity:</h3>
+                        <p class="ml-4">Equity: <span class="font-bold text-purple-600" id="balance-sheet-equity">$0.00</span></p>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-4">This simplified balance sheet shows the company's assets (Accounts Receivable) and equity based on the provided data. No liabilities are included in this summary.</p>
+                    <div class="mt-8 flex flex-wrap gap-4 justify-end">
+                        <button id="print-general-balance-sheet-btn" class="action-button">
+                            <span>Print Balance Sheet</span>
+                            <span class="text-sm">🖨️</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Manage Invoices View (Hidden by default) -->
+                <div id="manage-invoices-view" class="hidden card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800">Manage Invoices</h2>
+                        <button id="back-to-summary-from-manage-invoices" class="action-button">← Back to Summary</button>
+                    </div>
+                    <p class="text-gray-700 mb-4">Full functionality to update, add, or delete invoices requires a backend database system. This is a simulation of available options.</p>
+                    <div class="flex flex-col gap-4">
+                        <button class="action-button disabled">
+                            <span>Update Invoice (Requires Backend)</span>
+                            <span class="text-sm">✏️</span>
+                        </button>
+                        <button class="action-button disabled">
+                            <span>Add New Invoice (Requires Backend)</span>
+                            <span class="text-sm">➕</span>
+                        </button>
+                        <button class="action-button disabled">
+                            <span>Delete Invoice (Requires Backend)</span>
+                            <span class="text-sm">🗑️</span>
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-4">For complete automation and data persistence, these operations would require a connection to a database and a server.</p>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Hidden Print Area -->
+    <div id="print-area" class="print-area hidden"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const openInvoicesData = [
+                { client: '208 Tiny Homes', invoice: '217943', date: '04/30/2025', dueDate: '05/15/2025', amount: 500.00, aging: 16 },
+                { client: 'Basalite', invoice: '217951', date: '05/31/2025', dueDate: '06/15/2025', amount: 450.00, aging: 0 },
+                { client: 'Basalite', invoice: '217952', date: '05/31/2025', dueDate: '06/15/2025', amount: 600.00, aging: 0 },
+                { client: 'Ben Tracy Marketing', invoice: '217964', date: '05/31/2025', dueDate: '06/15/2025', amount: 425.00, aging: 0 },
+                { client: 'Consign Furniture', invoice: '217744', date: '05/31/2024', dueDate: '06/15/2024', amount: 200.00, aging: 350 },
+                { client: 'Consign Furniture', invoice: '217783', date: '07/31/2024', dueDate: '08/15/2024', amount: 800.00, aging: 289 },
+                { client: 'Consign Furniture', invoice: '217807', date: '08/31/2024', dueDate: '09/15/2024', amount: 1000.00, aging: 258 },
+                { client: 'Consign Furniture', invoice: '217825', date: '09/30/2024', dueDate: '10/15/2024', amount: 800.00, aging: 228 },
+                { client: 'Consign Furniture', invoice: '217845', date: '10/31/2024', dueDate: '11/15/2024', amount: 800.00, aging: 197 },
+                { client: 'David McKinzie Enterprises LLC', invoice: '217940', date: '03/31/2025', dueDate: '04/15/2025', amount: 547.83, aging: 46 },
+                { client: 'David McKinzie Enterprises LLC', invoice: '217941', date: '04/30/2025', dueDate: '05/15/2025', amount: 1650.00, aging: 16 },
+                { client: 'David McKinzie Enterprises LLC', invoice: '217950', date: '05/31/2025', dueDate: '06/15/2025', amount: 300.00, aging: 0 },
+                { client: 'Fish Window Cleaning', invoice: '217900', date: '02/28/2025', dueDate: '03/15/2025', amount: 625.00, aging: 77 },
+                { client: 'Fish Window Cleaning', invoice: '217915', date: '03/31/2025', dueDate: '04/15/2025', amount: 375.00, aging: 46 },
+                { client: 'Fish Window Cleaning', invoice: '217942', date: '04/30/2025', dueDate: '05/15/2025', amount: 500.00, aging: 16 },
+                { client: 'Fish Window Cleaning', invoice: '217963', date: '05/31/2025', dueDate: '06/15/2025', amount: 325.00, aging: 0 },
+                { client: 'Jaylene Groeniger', invoice: '217932', date: '03/31/2025', dueDate: '04/15/2025', amount: 320.00, aging: 46 },
+                { client: 'Jaylene Groeniger', invoice: '217949', date: '04/30/2025', dueDate: '05/15/2025', amount: 240.00, aging: 16 },
+                { client: 'Jaylene Groeniger', invoice: '217955', date: '05/31/2025', dueDate: '06/15/2025', amount: 400.00, aging: 0 },
+                { client: 'Julie Leslie', invoice: '217962', date: '05/31/2025', dueDate: '06/15/2025', amount: 200.00, aging: 0 },
+                { client: 'Justine Krivanec', invoice: '217893', date: '01/31/2025', dueDate: '02/15/2025', amount: 399.00, aging: 105 },
+                { client: 'Karen Thompson', invoice: '217957', date: '05/31/2025', dueDate: '06/15/2025', amount: 299.00, aging: 0 },
+                { client: 'Kathy Vaughan', invoice: '217959', date: '05/31/2025', dueDate: '06/15/2025', amount: 275.00, aging: 0 },
+                { client: 'Kraig Wees', invoice: '217961', date: '05/31/2025', dueDate: '06/15/2025', amount: 275.00, aging: 0 },
+                { client: 'Lisa Willey', invoice: '217948', date: '04/30/2025', dueDate: '05/15/2025', amount: 125.00, aging: 16 },
+                { client: 'Lisa Willey', invoice: '217960', date: '05/31/2025', dueDate: '06/15/2025', amount: 275.00, aging: 0 },
+                { client: 'Porter Anderst', invoice: '217923', date: '03/31/2025', dueDate: '04/15/2025', amount: 299.00, aging: 46 },
+                { client: 'Rebelann Mueller', invoice: '217926', date: '03/31/2025', dueDate: '04/15/2025', amount: 500.00, aging: 46 },
+                { client: 'Robin Starr-Crawford', invoice: '217939', date: '03/31/2025', dueDate: '04/15/2025', amount: 299.00, aging: 46 },
+                { client: 'Stacey Budell', invoice: '217956', date: '05/31/2025', dueDate: '06/15/2025', amount: 1075.00, aging: 0 },
+                { client: 'Toni Palmiotto', invoice: '217958', date: '05/31/2025', dueDate: '06/15/2025', amount: 275.00, aging: 0 },
+                { client: 'Terrace Lakes', invoice: '217953', date: '05/31/2025', dueDate: '06/15/2025', amount: 200.00, aging: 0 },
+                { client: 'Terrace Lakes', invoice: '217954', date: '05/31/2025', dueDate: '06/15/2025', amount: 300.00, aging: 0 },
+            ];
+
+            const statementData = {
+                "208 Tiny Homes": [
+                    { date: "04/30/2024", transaction: "Balance forward", amount: null, balance: 0.00 },
+                    { date: "10/31/2024", transaction: "INV #217863. Due 10/31/2024.", amount: 400.00, balance: 400.00 },
+                    { date: "11/27/2024", transaction: "PMT #1234.", amount: -1350.00, balance: -950.00 },
+                    { date: "11/30/2024", transaction: "INV #217868. Due 11/30/2024.", amount: 950.00, balance: 0.00 },
+                    { date: "01/02/2025", transaction: "INV #217886. Due 01/17/2025.", amount: 690.00, balance: 690.00 },
+                    { date: "02/01/2025", transaction: "PMT #1324.", amount: -690.00, balance: 0.00 },
+                    { date: "02/28/2025", transaction: "INV #217902. Due 03/15/2025.", amount: 425.00, balance: 425.00 },
+                    { date: "02/28/2025", transaction: "INV #217903. Due 03/15/2025.", amount: 1350.00, balance: 1775.00 },
+                    { date: "03/08/2025", transaction: "PMT #ach.", amount: -1775.00, balance: 0.00 },
+                    { date: "03/31/2025", transaction: "INV #217917. Due 04/15/2025.", amount: 775.00, balance: 775.00 },
+                    { date: "04/30/2025", transaction: "INV #217943. Due 05/15/2025.", amount: 500.00, balance: 1275.00 },
+                    { date: "05/14/2025", transaction: "PMT", amount: -775.00, balance: 500.00 }
+                ],
+                "Consign Furniture": [
+                    { date: "04/30/2024", transaction: "Balance forward", amount: null, balance: 5200.00 },
+                    { date: "05/06/2024", transaction: "PMT #0450.", amount: -1000.00, balance: 4200.00 },
+                    { date: "05/31/2024", transaction: "INV #217744. Due 06/15/2024.", amount: 1000.00, balance: 5200.00 },
+                    { date: "06/30/2024", transaction: "INV #217763. Due 07/15/2024.", amount: 800.00, balance: 6000.00 },
+                    { date: "07/31/2024", transaction: "INV #217783. Due 08/15/2024.", amount: 800.00, balance: 6800.00 },
+                    { date: "08/31/2024", transaction: "INV #217807. Due 09/15/2024.", amount: 1000.00, balance: 7800.00 },
+                    { date: "09/04/2024", transaction: "PMT #0539.", amount: -800.00, balance: 7000.00 },
+                    { date: "09/30/2024", transaction: "INV #217825. Due 10/15/2024.", amount: 800.00, balance: 7800.00 },
+                    { date: "10/31/2024", transaction: "INV #217845. Due 11/15/2024.", amount: 800.00, balance: 8600.00 },
+                    { date: "11/19/2024", transaction: "PMT #0598.", amount: -600.00, balance: 8000.00 },
+                    { date: "11/19/2024", transaction: "PMT #0596.", amount: -1000.00, balance: 7000.00 },
+                    { date: "12/19/2024", transaction: "PMT #100609.", amount: -1000.00, balance: 6000.00 },
+                    { date: "02/10/2025", transaction: "PMT #0648.", amount: -800.00, balance: 5200.00 },
+                    { date: "02/10/2025", transaction: "PMT #100648.", amount: -800.00, balance: 4400.00 },
+                    { date: "04/28/2025", transaction: "PMT", amount: -800.00, balance: 3600.00 }
+                ],
+                "David McKinzie Enterprises LLC": [
+                    { date: "04/30/2024", transaction: "Balance forward", amount: null, balance: 3300.00 },
+                    { date: "05/22/2024", transaction: "PMT #1234.", amount: -3300.00, balance: 0.00 },
+                    { date: "05/31/2024", transaction: "INV #217741. Due 06/15/2024.", amount: 300.00, balance: 300.00 },
+                    { date: "05/31/2024", transaction: "INV #217750. Due 06/15/2024.", amount: 825.00, balance: 1125.00 },
+                    { date: "06/01/2024", transaction: "PMT #1234.", amount: -300.00, balance: 825.00 },
+                    { date: "06/17/2024", transaction: "PMT #cash.", amount: -825.00, balance: 0.00 },
+                    { date: "06/30/2024", transaction: "INV #217768. Due 07/15/2024. VOID:", amount: 0.00, balance: 0.00 },
+                    { date: "06/30/2024", transaction: "INV #217803. Due 07/15/2024.", amount: 745.00, balance: 745.00 },
+                    { date: "07/01/2024", transaction: "PMT", amount: -70.00, balance: 675.00 },
+                    { date: "07/08/2024", transaction: "PMT #Cash.", amount: -375.00, balance: 300.00 },
+                    { date: "07/22/2024", transaction: "PMT #Cash.", amount: -300.00, balance: 0.00 },
+                    { date: "07/31/2024", transaction: "INV #217799. Due 08/15/2024.", amount: 725.00, balance: 725.00 },
+                    { date: "08/15/2024", transaction: "PMT #1234.", amount: -725.00, balance: 0.00 },
+                    { date: "08/31/2024", transaction: "INV #217822. Due 09/15/2024.", amount: 2180.00, balance: 2180.00 },
+                    { date: "09/04/2024", transaction: "PMT", amount: -2120.00, balance: 60.00 },
+                    { date: "09/30/2024", transaction: "INV #217842. Due 10/15/2024.", amount: 2250.00, balance: 2310.00 },
+                    { date: "10/01/2024", transaction: "PMT", amount: -175.00, balance: 2135.00 },
+                    { date: "10/01/2024", transaction: "PMT #Mass Motors Credit.", amount: -175.00, balance: 1960.00 },
+                    { date: "10/01/2024", transaction: "PMT #Credit - Over/Under.", amount: -50.00, balance: 1910.00 },
+                    { date: "10/11/2024", transaction: "PMT #Paypal.", amount: -897.34, balance: 1012.66 },
+                    { date: "10/18/2024", transaction: "PMT #Paypal.", amount: -485.05, balance: 527.61 },
+                    { date: "10/31/2024", transaction: "INV #217862. Due 11/15/2024.", amount: 1510.22, balance: 2037.83 },
+                    { date: "11/30/2024", transaction: "INV #217884. Due 12/15/2024.", amount: 2100.00, balance: 4137.83 },
+                    { date: "11/30/2024", transaction: "PMT #1234.", amount: -700.00, balance: 3437.83 },
+                    { date: "01/09/2025", transaction: "PMT #cash.", amount: -750.00, balance: 2687.83 },
+                    { date: "01/17/2025", transaction: "PMT #cash.", amount: -1000.00, balance: 1687.83 },
+                    { date: "02/03/2025", transaction: "PMT #cash.", amount: -975.00, balance: 712.83 },
+                    { date: "02/28/2025", transaction: "INV #217911. Due 03/15/2025.", amount: 1200.00, balance: 1912.83 },
+                    { date: "03/29/2025", transaction: "PMT #cash.", amount: -1000.00, balance: 912.83 },
+                    { date: "03/31/2025", transaction: "INV #217940. Due 04/15/2025.", amount: 1850.00, balance: 2762.83 },
+                    { date: "04/15/2025", transaction: "PMT #paypal.", amount: -100.00, balance: 2662.83 },
+                    { date: "04/25/2025", transaction: "PMT #paypal.", amount: -115.00, balance: 2547.83 },
+                    { date: "04/30/2025", transaction: "INV #217941. Due 05/15/2025.", amount: 1650.00, balance: 4197.83 },
+                    { date: "05/05/2025", transaction: "PMT", amount: -200.00, balance: 3997.83 },
+                    { date: "05/05/2025", transaction: "PMT", amount: -125.00, balance: 3872.83 },
+                    { date: "05/14/2025", transaction: "PMT", amount: -250.00, balance: 3622.83 },
+                    { date: "05/14/2025", transaction: "PMT", amount: -125.00, balance: 3497.83 },
+                    { date: "05/16/2025", transaction: "PMT", amount: -120.00, balance: 3377.83 },
+                    { date: "05/23/2025", transaction: "PMT", amount: -1000.00, balance: 2377.83 },
+                    { date: "05/28/2025", transaction: "PMT", amount: -180.00, balance: 2197.83 },
+                    { date: "05/31/2025", transaction: "INV #217950. Due 06/15/2025.", amount: 300.00, balance: 2497.83 }
+                ],
+                "Fish Window Cleaning": [
+                    { date: "04/30/2024", transaction: "Balance forward", amount: null, balance: 0.00 },
+                    { date: "10/31/2024", transaction: "INV #217850. Due 11/15/2024.", amount: 500.00, balance: 500.00 },
+                    { date: "11/19/2024", transaction: "PMT #1478.", amount: -500.00, balance: 0.00 },
+                    { date: "11/30/2024", transaction: "INV #217867. Due 12/15/2024.", amount: 250.00, balance: 250.00 },
+                    { date: "12/17/2024", transaction: "PMT #1485.", amount: -250.00, balance: 0.00 },
+                    { date: "01/31/2025", transaction: "INV #217890. Due 02/15/2025.", amount: 625.00, balance: 625.00 },
+                    { date: "02/28/2025", transaction: "INV #217900. Due 03/15/2025.", amount: 625.00, balance: 1250.00 },
+                    { date: "03/15/2025", transaction: "PMT #107.", amount: -313.00, balance: 937.00 },
+                    { date: "03/31/2025", transaction: "INV #217915. Due 04/15/2025.", amount: 375.00, balance: 1312.00 },
+                    { date: "04/23/2025", transaction: "PMT #1013.", amount: -312.00, balance: 1000.00 },
+                    { date: "04/30/2025", transaction: "INV #217942. Due 05/15/2025.", amount: 500.00, balance: 1500.00 },
+                    { date: "05/31/2025", transaction: "INV #217963. Due 06/15/2025.", amount: 325.00, balance: 1825.00 }
+                ],
+                "Jaylene Groeniger": [
+                    { date: "04/30/2024", transaction: "Balance forward", amount: null, balance: 800.00 },
+                    { date: "05/19/2024", transaction: "PMT #286.", amount: -400.00, balance: 400.00 },
+                    { date: "06/30/2024", transaction: "INV #217777. Due 07/15/2024.", amount: 678.00, balance: 1078.00 },
+                    { date: "07/31/2024", transaction: "INV #217788. Due 08/15/2024.", amount: 320.00, balance: 1398.00 },
+                    { date: "08/12/2024", transaction: "PMT #561.", amount: -400.00, balance: 998.00 },
+                    { date: "08/31/2024", transaction: "INV #217813. Due 09/15/2024.", amount: 520.00, balance: 1518.00 },
+                    { date: "09/30/2024", transaction: "INV #217831. Due 10/15/2024.", amount: 519.00, balance: 2037.00 },
+                    { date: "10/15/2024", transaction: "PMT #289.", amount: -2037.00, balance: 0.00 },
+                    { date: "10/31/2024", transaction: "INV #217856. Due 11/15/2024.", amount: 320.00, balance: 320.00 },
+                    { date: "11/30/2024", transaction: "INV #217869. Due 12/15/2024.", amount: 400.00, balance: 720.00 },
+                    { date: "11/30/2024", transaction: "INV #217877. Due 12/15/2024.", amount: 280.00, balance: 1000.00 },
+                    { date: "01/31/2025", transaction: "INV #217892. Due 02/15/2025.", amount: 240.00, balance: 1240.00 },
+                    { date: "02/28/2025", transaction: "INV #217904. Due 03/15/2025.", amount: 480.00, balance: 1720.00 },
+                    { date: "03/04/2025", transaction: "PMT #294.", amount: -1000.00, balance: 720.00 },
+                    { date: "03/04/2025", transaction: "PMT #295.", amount: -720.00, balance: 0.00 },
+                    { date: "03/31/2025", transaction: "INV #217932. Due 04/15/2025.", amount: 320.00, balance: 320.00 },
+                    { date: "04/30/2025", transaction: "INV #217949. Due 05/15/2025.", amount: 240.00, balance: 560.00 },
+                    { date: "05/31/2025", transaction: "INV #217955. Due 06/15/2025.", amount: 400.00, balance: 960.00 }
+                ],
+                "Justine Krivanec": [
+                    { date: "04/30/2024", transaction: "Balance forward", amount: null, balance: 0.00 },
+                    { date: "01/31/2025", transaction: "INV #217893. Due 02/15/2025.", amount: 399.00, balance: 399.00 },
+                    { date: "03/31/2025", transaction: "INV #217930. Due 04/15/2025.", amount: 598.00, balance: 997.00 },
+                    { date: "04/03/2025", transaction: "PMT #paypal.", amount: -598.00, balance: 399.00 }
+                ],
+                "Lisa Willey": [
+                    { date: "04/30/2024", transaction: "Balance forward", amount: null, balance: 375.00 },
+                    { date: "05/23/2024", transaction: "PMT #327.", amount: -375.00, balance: 0.00 },
+                    { date: "05/31/2024", transaction: "INV #217754. Due 06/15/2024.", amount: 325.00, balance: 325.00 },
+                    { date: "06/19/2024", transaction: "PMT #332.", amount: -325.00, balance: 0.00 },
+                    { date: "06/30/2024", transaction: "INV #217770. Due 07/15/2024.", amount: 325.00, balance: 325.00 },
+                    { date: "07/31/2024", transaction: "INV #217796. Due 08/15/2024.", amount: 275.00, balance: 600.00 },
+                    { date: "08/31/2024", transaction: "INV #217816. Due 09/15/2024.", amount: 300.00, balance: 900.00 },
+                    { date: "09/25/2024", transaction: "PMT #363.", amount: -900.00, balance: 0.00 },
+                    { date: "09/30/2024", transaction: "INV #217835. Due 10/15/2024.", amount: 275.00, balance: 275.00 },
+                    { date: "01/22/2025", transaction: "PMT #359.", amount: -275.00, balance: 0.00 },
+                    { date: "04/30/2025", transaction: "INV #217948. Due 05/15/2025.", amount: 125.00, balance: 125.00 },
+                    { date: "05/31/2025", transaction: "INV #217960. Due 06/15/2025.", amount: 275.00, balance: 400.00 }
+                ],
+                "Porter Anderst": [
+                    { date: "04/30/2024", transaction: "Balance forward", amount: null, balance: 0.00 },
+                    { date: "03/31/2025", transaction: "INV #217923. Due 04/15/2025.", amount: 299.00, balance: 299.00 }
+                ],
+                "Rebelann Mueller": [
+                    { date: "04/30/2024", transaction: "Balance forward", amount: null, balance: 0.00 },
+                    { date: "03/31/2025", transaction: "INV #217926. Due 04/15/2025.", amount: 500.00, balance: 500.00 }
+                ],
+                "Robin Starr-Crawford": [
+                    { date: "04/30/2024", transaction: "Balance forward", amount: null, balance: 0.00 },
+                    { date: "03/31/2025", transaction: "INV #217939. Due 04/15/2025.", amount: 299.00, balance: 299.00 }
+                ],
+                "Stacey Budell": [
+                    { date: "05/31/2025", transaction: "INV #217956. Due 06/15/2025.", amount: 1075.00, balance: 1075.00 }
+                ],
+                "Terrace Lakes": [
+                    { date: "05/31/2025", transaction: "INV #217953. Due 06/15/2025.", amount: 200.00, balance: 200.00 },
+                    { date: "05/31/2025", transaction: "INV #217954. Due 06/15/2025.", amount: 300.00, balance: 500.00 }
+                ],
+                "Ben Tracy Marketing": [
+                    { date: "05/31/2025", transaction: "INV #217964. Due 06/15/2025.", amount: 425.00, balance: 425.00 }
+                ],
+                "Kathy Vaughan": [
+                    { date: "05/31/2025", transaction: "INV #217959. Due 06/15/2025.", amount: 275.00, balance: 275.00 }
+                ],
+                "Kraig Wees": [
+                    { date: "05/31/2025", transaction: "INV #217961. Due 06/15/2025.", amount: 275.00, balance: 275.00 }
+                ],
+                "Julie Leslie": [
+                    { date: "05/31/2025", transaction: "INV #217962. Due 06/15/2025.", amount: 200.00, balance: 200.00 }
+                ],
+                "Karen Thompson": [
+                    { date: "05/31/2025", transaction: "INV #217957. Due 06/15/2025.", amount: 299.00, balance: 299.00 }
+                ],
+                "Basalite": [
+                    { date: "05/31/2025", transaction: "INV #217951. Due 06/15/2025.", amount: 450.00, balance: 450.00 },
+                    { date: "05/31/2025", transaction: "INV #217952. Due 06/15/2025.", amount: 600.00, balance: 1050.00 }
+                ]
+            };
+
+            const allClients = Array.from(new Set(openInvoicesData.map(item => item.client)));
+
+            // Calculate KPIs
+            const totalOutstanding = openInvoicesData.reduce((sum, item) => sum + item.amount, 0);
+            const openInvoicesCount = openInvoicesData.length;
+            const clientsWithDebt = allClients.length;
+
+            let totalPaymentsReceived = 0;
+            for (const client in statementData) {
+                statementData[client].forEach(transaction => {
+                    if (transaction.transaction && transaction.transaction.includes("PMT") && transaction.amount !== null) {
+                        totalPaymentsReceived += Math.abs(transaction.amount);
+                    }
+                });
+            }
+
+            document.getElementById('total-outstanding').textContent = `$${totalOutstanding.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById('open-invoices').textContent = openInvoicesCount;
+            document.getElementById('clients-with-debt').textContent = clientsWithDebt;
+            document.getElementById('total-payments-received').textContent = `$${totalPaymentsReceived.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+            // Prepare Data for Charts
+            const agingData = {
+                'Current': 0, '1-30 Days': 0, '31-60 Days': 0, '61-90 Days': 0, '> 90 Days': 0
+            };
+            const clientTotals = {};
+
+            openInvoicesData.forEach(inv => {
+                if (inv.aging <= 0) agingData['Current'] += inv.amount;
+                else if (inv.aging <= 30) agingData['1-30 Days'] += inv.amount;
+                else if (inv.aging <= 60) agingData['31-60 Days'] += inv.amount;
+                else if (inv.aging <= 90) agingData['61-90 Days'] += inv.amount;
+                else agingData['> 90 Days'] += inv.amount;
+
+                clientTotals[inv.client] = (clientTotals[inv.client] || 0) + inv.amount;
+            });
+
+            // --- Render Client List ---
+            const clientListBody = document.getElementById('client-list');
+            const sortedClients = Object.entries(clientTotals).sort((a, b) => b[1] - a[1]);
+
+            function populateClientList(clients) {
+                clientListBody.innerHTML = '';
+                clients.forEach(([name, total]) => {
+                    const row = document.createElement('tr');
+                    row.className = 'client-list-item';
+                    row.innerHTML = `<td class="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">${name}</td><td class="px-4 py-3 text-right">$${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`;
+                    row.addEventListener('click', () => {
+                        document.querySelectorAll('.client-list-item').forEach(r => r.classList.remove('active'));
+                        row.classList.add('active');
+                        showClientDetail(name);
+                    });
+                    clientListBody.appendChild(row);
+                });
+            }
+            populateClientList(sortedClients);
+            
+            // --- Search Functionality ---
+            window.filterClients = () => {
+                const filter = document.getElementById('searchInput').value.toUpperCase();
+                const filteredClients = sortedClients.filter(([name, total]) => name.toUpperCase().includes(filter));
+                populateClientList(filteredClients);
+            };
+
+            // --- Chart Rendering ---
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                const item = tooltipItems[0];
+                                let label = item.chart.data.labels[item.dataIndex];
+                                if (Array.isArray(label)) {
+                                    return label.join(' ');
+                                }
+                                return label;
+                            },
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                let value = context.dataset.data[context.dataIndex];
+                                label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function(value) { return '$' + (value / 1000) + 'K'; }
+                        },
+                        beginAtZero: true
+                    }
+                }
+            };
+            
+            const horizontalChartOptions = JSON.parse(JSON.stringify(chartOptions));
+            horizontalChartOptions.indexAxis = 'y';
+            horizontalChartOptions.scales = {
+                x: {
+                    ticks: {
+                        callback: function(value) { return '$' + (value / 1000) + 'K'; }
+                    },
+                    beginAtZero: true
+                },
+                y: {
+                    autoSkip: false,
+                    maxRotation: 0,
+                    minRotation: 0,
+                    ticks: {
+                        callback: function(value, index, values) {
+                            const label = this.getLabelForValue(value);
+                            if (label.length > 16) {
+                                return label.split(' ').reduce((acc, word) => {
+                                    const lastLine = acc[acc.length - 1];
+                                    if (lastLine && (lastLine + ' ' + word).length <= 16) {
+                                        acc[acc.length - 1] += ' ' + word;
+                                    } else {
+                                        acc.push(word);
+                                    }
+                                    return acc;
+                                }, []);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            };
+
+
+            const agingChartCtx = document.getElementById('agingChart').getContext('2d');
+            new Chart(agingChartCtx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(agingData),
+                    datasets: [{
+                        label: 'Amount Due',
+                        data: Object.values(agingData),
+                        backgroundColor: ['#A8DADC', '#F1C40F', '#E67E22', '#D35400', '#C0392B']
+                    }]
+                },
+                options: chartOptions
+            });
+            
+            const topDebtors = sortedClients.slice(0, 5);
+            const topDebtorsChartCtx = document.getElementById('topDebtorsChart').getContext('2d');
+            new Chart(topDebtorsChartCtx, {
+                type: 'bar',
+                data: {
+                    labels: topDebtors.map(c => c[0]),
+                    datasets: [{
+                        label: 'Outstanding Balance',
+                        data: topDebtors.map(c => c[1]),
+                        backgroundColor: '#457B9D'
+                    }]
+                },
+                options: horizontalChartOptions
+            });
+
+            let clientOverviewChartInstance = null;
+
+            // --- View Switching Logic ---
+            const hideAllViews = () => {
+                document.getElementById('summary-view').classList.add('hidden');
+                document.getElementById('client-detail-view').classList.add('hidden');
+                document.getElementById('general-statement-view').classList.add('hidden');
+                document.getElementById('general-balance-sheet-view').classList.add('hidden');
+                document.getElementById('manage-invoices-view').classList.add('hidden');
+            };
+
+            const showSummaryView = () => {
+                hideAllViews();
+                document.getElementById('summary-view').classList.remove('hidden');
+                document.querySelectorAll('.client-list-item').forEach(r => r.classList.remove('active'));
+            };
+
+            const showClientDetail = (clientName) => {
+                hideAllViews();
+                document.getElementById('client-detail-view').classList.remove('hidden');
+                document.getElementById('client-detail-name').textContent = `Details for: ${clientName}`;
+
+                let clientTotalPaid = 0;
+                let clientTotalOwedOriginal = 0;
+                const clientTransactionsHistory = statementData[clientName] || [];
+
+                clientTransactionsHistory.forEach(tx => {
+                    if (tx.transaction && tx.transaction.includes("PMT") && tx.amount !== null) {
+                       clientTotalPaid += Math.abs(tx.amount);
+                    } else if (tx.transaction && tx.transaction.includes("INV") && tx.amount !== null) {
+                        clientTotalOwedOriginal += tx.amount;
+                    }
+                });
+
+                document.getElementById('client-total-paid').textContent = `$${clientTotalPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                document.getElementById('client-total-owed-original').textContent = `$${clientTotalOwedOriginal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+                if (clientOverviewChartInstance) {
+                    clientOverviewChartInstance.destroy();
+                }
+                const clientOverviewCtx = document.getElementById('clientOverviewChart').getContext('2d');
+                clientOverviewChartInstance = new Chart(clientOverviewCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Owed (Original)', 'Paid'],
+                        datasets: [{
+                            data: [clientTotalOwedOriginal, clientTotalPaid],
+                            backgroundColor: ['#E63946', '#2A9D8F']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    title: function(tooltipItems) {
+                                        const item = tooltipItems[0];
+                                        let label = item.chart.data.labels[item.dataIndex];
+                                        if (Array.isArray(label)) {
+                                            return label.join(' ');
+                                        }
+                                        return label;
+                                    },
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        let value = context.dataset.data[context.dataIndex];
+                                        label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) { return '$' + (value / 1000) + 'K'; }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                const clientInvoices = openInvoicesData.filter(item => item.client === clientName);
+                const invoiceTableBody = document.getElementById('client-invoices-table');
+                invoiceTableBody.innerHTML = '';
+                if (clientInvoices.length > 0) {
+                    clientInvoices.forEach(inv => {
+                        const row = invoiceTableBody.insertRow();
+                        row.innerHTML = `
+                            <td>${inv.invoice}</td>
+                            <td>${inv.date}</td>
+                            <td>${inv.dueDate}</td>
+                            <td>${inv.aging > 0 ? inv.aging : 'Current'}</td>
+                            <td class="text-right">${inv.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</td>
+                        `;
+                    });
+                } else {
+                    invoiceTableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No open invoices for this client.</td></tr>';
+                }
+
+                const clientTransactions = statementData[clientName] || [];
+                const transactionTableBody = document.getElementById('client-transactions-table');
+                transactionTableBody.innerHTML = '';
+                if (clientTransactions.length > 0) {
+                    clientTransactions.forEach(tx => {
+                        const row = transactionTableBody.insertRow();
+                        const amount = tx.amount !== null ? tx.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : '';
+                        const amountClass = tx.amount < 0 ? 'text-green-600' : 'text-red-600';
+                        row.innerHTML = `
+                            <td>${tx.date}</td>
+                            <td>${tx.transaction}</td>
+                            <td class="text-right ${amountClass}">${amount}</td>
+                            <td class="text-right">${tx.balance.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</td>
+                        `;
+                    });
+                } else {
+                    transactionTableBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">No transaction history available for this client.</td></tr>';
+                }
+
+                // Set up print and email buttons
+                document.getElementById('print-open-invoices').onclick = () => printOpenInvoices(clientName, clientInvoices);
+                document.getElementById('print-full-statement').onclick = () => printFullStatement(clientName, clientTransactions);
+                document.getElementById('send-email-statement').onclick = () => sendEmailStatement(clientName, clientInvoices, clientTransactions);
+                document.getElementById('send-reminder-btn').onclick = () => sendReminderEmail(clientName, clientInvoices);
+                document.getElementById('send-next-invoice-mercury-btn').onclick = () => sendNextInvoiceMercury(clientName);
+            };
+
+            document.getElementById('back-to-summary').addEventListener('click', showSummaryView);
+            document.getElementById('general-statement-btn').addEventListener('click', () => {
+                hideAllViews();
+                document.getElementById('general-statement-view').classList.remove('hidden');
+                populateAllTransactionsTable();
+            });
+            document.getElementById('back-to-summary-from-general-statement').addEventListener('click', showSummaryView);
+            document.getElementById('print-general-statement-btn').addEventListener('click', () => printGeneralStatement());
+
+
+            document.getElementById('general-balance-sheet-btn').addEventListener('click', () => {
+                hideAllViews();
+                document.getElementById('general-balance-sheet-view').classList.remove('hidden');
+                document.getElementById('balance-sheet-ar').textContent = `$${totalOutstanding.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                document.getElementById('balance-sheet-equity').textContent = `$${totalOutstanding.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; // Simplified: AR = Equity if no liabilities
+            });
+            document.getElementById('back-to-summary-from-balance-sheet').addEventListener('click', showSummaryView);
+            document.getElementById('print-general-balance-sheet-btn').addEventListener('click', () => printGeneralBalanceSheet(totalOutstanding));
+
+
+            document.getElementById('manage-invoices-btn').addEventListener('click', () => {
+                hideAllViews();
+                document.getElementById('manage-invoices-view').classList.remove('hidden');
+            });
+            document.getElementById('back-to-summary-from-manage-invoices').addEventListener('click', showSummaryView);
+
+            function printOpenInvoices(clientName, invoices) {
+                const printArea = document.getElementById('print-area');
+                let content = `
+                    <div style="padding: 2rem;">
+                        <h1 style="text-align: center; margin-bottom: 1rem;">Fitzsimmons Media</h1>
+                        <h2 style="text-align: center; margin-bottom: 2rem;">Open Invoices for ${clientName}</h2>
+                        <p>Date: ${new Date().toLocaleDateString()}</p>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 1.5rem;">
+                            <thead>
+                                <tr>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Invoice #</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Date</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Due Date</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Aging (Days)</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align: right;">Amount Due</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                if (invoices.length > 0) {
+                    invoices.forEach(inv => {
+                        content += `
+                            <tr>
+                                <td style="border: 1px solid #ccc; padding: 8px;">${inv.invoice}</td>
+                                <td style="border: 1px solid #ccc; padding: 8px;">${inv.date}</td>
+                                <td style="border: 1px solid #ccc; padding: 8px;">${inv.dueDate}</td>
+                                <td style="border: 1px solid #ccc; padding: 8px;">${inv.aging > 0 ? inv.aging : 'Current'}</td>
+                                <td style="border: 1px solid #ccc; padding: 8px; text-align: right;">${inv.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    content += `<tr><td colspan="5" style="border: 1px solid #ccc; padding: 8px; text-align: center;">No open invoices.</td></tr>`;
+                }
+                content += `
+                            </tbody>
+                        </table>
+                        <p style="margin-top: 2rem; text-align: right; font-weight: bold;">Total Outstanding: ${invoices.reduce((sum, inv) => sum + inv.amount, 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</p>
+                    </div>
+                `;
+                printArea.innerHTML = content;
+                window.print();
+                printArea.innerHTML = '';
+            }
+
+            function printFullStatement(clientName, transactions) {
+                const printArea = document.getElementById('print-area');
+                let content = `
+                    <div style="padding: 2rem;">
+                        <h1 style="text-align: center; margin-bottom: 1rem;">Fitzsimmons Media</h1>
+                        <h2 style="text-align: center; margin-bottom: 2rem;">Statement for ${clientName}</h2>
+                        <p>Date: ${new Date().toLocaleDateString()}</p>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 1.5rem;">
+                            <thead>
+                                <tr>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Date</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Transaction</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align: right;">Amount</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align: right;">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                if (transactions.length > 0) {
+                    transactions.forEach(tx => {
+                        const amount = tx.amount !== null ? tx.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : '';
+                        const amountColor = tx.amount < 0 ? 'green' : (tx.amount > 0 ? 'red' : 'inherit');
+                        content += `
+                            <tr>
+                                <td style="border: 1px solid #ccc; padding: 8px;">${tx.date}</td>
+                                <td style="border: 1px solid #ccc; padding: 8px;">${tx.transaction}</td>
+                                <td style="border: 1px solid #ccc; padding: 8px; text-align: right; color: ${amountColor};">${amount}</td>
+                                <td style="border: 1px solid #ccc; padding: 8px; text-align: right;">${tx.balance.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    content += `<tr><td colspan="4" style="border: 1px solid #ccc; padding: 8px; text-align: center;">No transaction history.</td></tr>`;
+                }
+                content += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                printArea.innerHTML = content;
+                window.print();
+                printArea.innerHTML = '';
+            }
+
+            function printGeneralStatement() {
+                const printArea = document.getElementById('print-area');
+                const allTransactions = [];
+                for (const client in statementData) {
+                    statementData[client].forEach(tx => {
+                        allTransactions.push({ ...tx, clientName: client });
+                    });
+                }
+                allTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                let content = `
+                    <div style="padding: 2rem;">
+                        <h1 style="text-align: center; margin-bottom: 1rem;">Fitzsimmons Media</h1>
+                        <h2 style="text-align: center; margin-bottom: 2rem;">General Statement</h2>
+                        <p>Date: ${new Date().toLocaleDateString()}</p>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 1.5rem;">
+                            <thead>
+                                <tr>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Date</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Client</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Transaction</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align: right;">Amount</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align: right;">Running Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                let runningBalance = 0;
+                if (allTransactions.length > 0) {
+                    allTransactions.forEach(tx => {
+                        if (tx.amount !== null) {
+                            runningBalance += tx.amount;
+                        }
+                        const amount = tx.amount !== null ? tx.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : '';
+                        const amountColor = tx.amount < 0 ? 'green' : (tx.amount > 0 ? 'red' : 'inherit');
+                        content += `
+                            <tr>
+                                <td style="border: 1px solid #ccc; padding: 8px;">${tx.date}</td>
+                                <td style="border: 1px solid #ccc; padding: 8px;">${tx.clientName}</td>
+                                <td style="border: 1px solid #ccc; padding: 8px;">${tx.transaction}</td>
+                                <td style="1px solid #ccc; padding: 8px; text-align: right; color: ${amountColor};">${amount}</td>
+                                <td style="border: 1px solid #ccc; padding: 8px; text-align: right;">${runningBalance.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    content += `<tr><td colspan="5" style="border: 1px solid #ccc; padding: 8px; text-align: center;">No transactions recorded.</td></tr>`;
+                }
+                content += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                printArea.innerHTML = content;
+                window.print();
+                printArea.innerHTML = '';
+            }
+
+            function printGeneralBalanceSheet(totalOutstanding) {
+                const printArea = document.getElementById('print-area');
+                let content = `
+                    <div style="padding: 2rem;">
+                        <h1 style="text-align: center; margin-bottom: 1rem;">Fitzsimmons Media</h1>
+                        <h2 style="text-align: center; margin-bottom: 2rem;">General Balance Sheet</h2>
+                        <p>Date: ${new Date().toLocaleDateString()}</p>
+                        <div style="margin-top: 1.5rem;">
+                            <h3 style="font-weight: bold; margin-bottom: 0.5rem;">Assets:</h3>
+                            <p style="margin-left: 1rem;">Accounts Receivable: <span style="font-weight: bold; color: #1D3557;">${totalOutstanding.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span></p>
+                        </div>
+                        <div style="margin-top: 1.5rem;">
+                            <h3 style="font-weight: bold; margin-bottom: 0.5rem;">Liabilities:</h3>
+                            <p style="margin-left: 1rem; color: #6B7280;">No liabilities recorded in current data.</p>
+                        </div>
+                        <div style="margin-top: 1.5rem;">
+                            <h3 style="font-weight: bold; margin-bottom: 0.5rem;">Equity:</h3>
+                            <p style="margin-left: 1rem;">Equity: <span style="font-weight: bold; color: #1D3557;">${totalOutstanding.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span></p>
+                        </div>
+                        <p style="margin-top: 2rem; font-size: 0.9em; color: #6B7280;">This simplified balance sheet shows the company's assets (Accounts Receivable) and equity based on the provided data. No liabilities are included in this summary.</p>
+                    </div>
+                `;
+                printArea.innerHTML = content;
+                window.print();
+                printArea.innerHTML = '';
+            }
+
+            function sendEmailStatement(clientName, invoices, transactions) {
+                const subject = encodeURIComponent(`Account Statement and Invoices from Fitzsimmons Media for ${clientName}`);
+                let body = `Dear ${clientName},\n\nPlease find attached a summary of your open invoices and transaction history with Fitzsimmons Media.\n\n`;
+                
+                if (invoices.length > 0) {
+                    body += "Open Invoices:\n";
+                    invoices.forEach(inv => {
+                        body += `- Invoice #${inv.invoice} (${inv.date}): $${inv.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Due: ${inv.dueDate})\n`;
+                    });
+                    body += `Total Outstanding Balance: $${invoices.reduce((sum, inv) => sum + inv.amount, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n`;
+                } else {
+                    body += "There are currently no open invoices.\n\n";
+                }
+
+                if (transactions.length > 0) {
+                    body += "Recent Transaction History:\n";
+                    transactions.slice(-5).forEach(tx => {
+                        const amount = tx.amount !== null ? tx.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : '';
+                        body += `- ${tx.date}: ${tx.transaction} - ${amount} (Balance: ${tx.balance.toLocaleString('en-US', { style: 'currency', currency: 'USD' })})\n`;
+                    });
+                    if (transactions.length > 5) {
+                        body += `... (See full statement for more details)\n\n`;
+                    } else {
+                        body += `\n`;
+                    }
+                } else {
+                    body += "No recent transaction history.\n\n";
+                }
+
+                body += "Please do not hesitate to contact us if you have any questions.\n\nSincerely,\nFitzsimmons Media";
+
+                window.location.href = `mailto:?subject=${subject}&body=${encodeURIComponent(body)}`;
+            }
+
+            function sendReminderEmail(clientName, invoices) {
+                const outstandingAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
+                const subject = encodeURIComponent(`Payment Reminder - Fitzsimmons Media for ${clientName}`);
+                let body = `Dear ${clientName},\n\nThis is a friendly reminder regarding your outstanding balance with Fitzsimmons Media.\n\n`;
+
+                if (invoices.length > 0) {
+                    body += "Your open invoices are:\n";
+                    invoices.forEach(inv => {
+                        body += `- Invoice #${inv.invoice} (${inv.date}): $${inv.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Due: ${inv.dueDate})\n`;
+                    });
+                    body += `\nThe total outstanding balance is: $${outstandingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n`;
+                } else {
+                    body += "You currently have no open invoices with us. This is a general reminder.\n\n";
+                }
+
+                body += "We appreciate your prompt attention to this matter.\n\nSincerely,\nFitzsimmons Media";
+
+                window.location.href = `mailto:?subject=${subject}&body=${encodeURIComponent(body)}`;
+            }
+
+            function sendNextInvoiceMercury(clientName) {
+                const subject = encodeURIComponent(`New Invoice from Fitzsimmons Media for ${clientName}`);
+                const body = encodeURIComponent(`Dear ${clientName},\n\nPlease find your next invoice from Fitzsimmons Media attached. Please log in to Mercury to upload the invoice file and send it.\n\nSincerely,\nFitzsimmons Media`);
+                
+                window.open(`https://mercury.com/app/invoices/new?subject=${subject}&body=${body}`, '_blank');
+            }
+
+            function populateAllTransactionsTable() {
+                const allTransactions = [];
+                for (const client in statementData) {
+                    statementData[client].forEach(tx => {
+                        allTransactions.push({ ...tx, clientName: client });
+                    });
+                }
+
+                allTransactions.sort((a, b) => {
+                    const dateA = new Date(a.date);
+                    const dateB = new Date(b.date);
+                    return dateA - dateB;
+                });
+
+                const allTransactionsTableBody = document.getElementById('all-transactions-table');
+                allTransactionsTableBody.innerHTML = '';
+                let runningBalance = 0;
+
+                if (allTransactions.length > 0) {
+                    allTransactions.forEach(tx => {
+                        if (tx.amount !== null) {
+                            runningBalance += tx.amount;
+                        }
+                        
+                        const row = allTransactionsTableBody.insertRow();
+                        const amount = tx.amount !== null ? tx.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : '';
+                        const amountClass = tx.amount < 0 ? 'text-green-600' : (tx.amount > 0 ? 'text-red-600' : '');
+                        row.innerHTML = `
+                            <td>${tx.date}</td>
+                            <td>${tx.clientName}</td>
+                            <td>${tx.transaction}</td>
+                            <td class="text-right ${amountClass}">${amount}</td>
+                            <td class="text-right">${runningBalance.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</td>
+                        `;
+                    });
+                } else {
+                    allTransactionsTableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No transactions recorded.</td></tr>';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
